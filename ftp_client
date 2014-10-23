@@ -24,10 +24,11 @@ int main(int argc, char *argv[])
 	char autentikasi[MAX_CMD_SIZE];
 	char tmp[MAX_CMD_SIZE];
 	char ftp_cmd[MAX_CMD_SIZE];
+	char nama_file[MAX_CMD_SIZE]; 
 	
 	/*-----------------------init-------------------*/
 	control_sockinit = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (retrnval < 0) 
+	if (control_sockinit < 0) 
 	{
 		printf("Gagal membuat socket\n");
 		exit(1);
@@ -116,17 +117,19 @@ int main(int argc, char *argv[])
 	/*----------------------data-------------------*/
 	while(1)
 	{
+		printf("udah ngulang\n");
 		memset(autentikasi, 0, MAX_CMD_SIZE);
 		memset(ftp_cmd, 0, MAX_CMD_SIZE);
 		memset(tmp, 0, MAX_CMD_SIZE);
 		
 		printf("ftp> ");
 		fgets(autentikasi, MAX_CMD_SIZE, stdin);
+		//fputs(autentikasi,stdout);
 		int len = strlen(autentikasi);
 		autentikasi[len-1] = '\0';
 		strcpy(ftp_cmd, autentikasi);
 		strcat(ftp_cmd,"\r\n");
-		
+		//fputs(ftp_cmd,stdout);
 		memset(control_info, 0, MAX_INFO);
 
 		if ((retrnval = write(control_sockinit, ftp_cmd, strlen(ftp_cmd))) < 0)
@@ -135,6 +138,8 @@ int main(int argc, char *argv[])
 		if ((retrnval = read(control_sockinit, control_info, sizeof(control_info))) < 0)
 			printf("Gagal membaca pesan\n");
 		fputs(control_info, stdout);
+		
+		/*---------------LIST-----------------*/
 
 		if(strncmp(ftp_cmd,"list",4) == 0)
 		{	
@@ -207,6 +212,284 @@ int main(int argc, char *argv[])
 	
 		}
 
+		/*----------------------------LIST------------------------------------*/
+
+		
+		/*---------------------------RETR-------------------------------------*/
+		if (strncmp("retr", ftp_cmd, 4) == 0)  
+            {  
+			int s=0, idx=0;   
+                   	int length=strlen(ftp_cmd);   
+                    
+                    	for(s=5;s<length-2;s++)  
+                   	{                          
+                        	nama_file[idx]=ftp_cmd[s];
+				idx++;  
+                    	}  
+                   		nama_file[idx]='\0';  
+			printf("%s",nama_file);
+			printf("hai");
+			char pasv_cmd_retr[7]="pasv\r\n";
+			int panjang;  
+			if(strlen(pasv_cmd_retr)!=0)  
+			{  
+			panjang = write(control_sockinit, pasv_cmd_retr, strlen(pasv_cmd_retr));  
+			    printf("%d bytes writen %s\n", panjang, pasv_cmd_retr);  
+			}  
+			  
+			memset(control_info, 0, MAX_INFO);     
+			int b;  
+			if((b=recv(control_sockinit,control_info,MAX_INFO,0))==-1)  
+			{  
+			    printf("recv error\n");  
+			    exit(-1);  
+			}  
+			control_info[b]='\0';  
+			printf("Server Message:\n%s\n",control_info); 
+
+			struct sockaddr_in data_Temp_addr_retr=get_Server_Data_Port();
+
+			int data_sockinit_retr;
+	
+			if ((data_sockinit_retr=socket(AF_INET,SOCK_STREAM,0))==-1)
+			{   
+			    fprintf(stderr,"Socket Create Error:%s\a\n",strerror(errno));  
+			    exit(1);   
+			}  
+		       if(connect(data_sockinit_retr, (struct sockaddr*)(&data_Temp_addr_retr), sizeof(struct sockaddr_in)) < 0)  
+			{  
+			    printf("Gagal Berhubungan\n");  
+			    exit(-1);  
+			}  			
+					        
+			char type_cmd[9]="TYPE I\r\n";  
+		       //get_Server_Control_Info(type_cmd,strlen(type_cmd));  
+			int panretr;  
+			if(strlen(type_cmd)!=0)  
+			{  
+			panretr = write(control_sockinit, type_cmd, strlen(type_cmd));  
+			    printf("%d bytes writen %s\n", panretr,type_cmd);  
+			}  
+			  
+			memset(control_info, 0, MAX_INFO);     
+			int bytes;  
+			if((bytes=recv(control_sockinit,control_info,MAX_INFO,0))==-1)  
+			{  
+			    printf("recv error\n");  
+			    exit(-1);  
+			}  
+			control_info[bytes]='\0';  
+			printf("Server Message:\n%s\n",control_info); 
+		
+
+			//get_Server_Control_Info(cmd,strlen(cmd)); 
+			int pancmd;  
+			if(strlen(ftp_cmd)!=0)  
+			{  
+			pancmd = write(control_sockinit, ftp_cmd, strlen(ftp_cmd));  
+			    printf("%d bytes writen %s\n", pancmd,ftp_cmd);  
+			}  
+			  
+			memset(control_info, 0, MAX_INFO);     
+			int dataretr;  
+			if((dataretr=recv(control_sockinit,control_info,MAX_INFO,0))==-1)  
+			{  
+			    printf("recv error\n");  
+			    exit(-1);  
+			}  
+			control_info[dataretr]='\0';  
+			printf("Server Message:\n%s\n",control_info);  
+		         
+			
+                    
+		       	FILE* fp = fopen(nama_file, "ab");  
+		        if (fp == NULL)  
+		            {  
+		                printf("open file %s error\n",nama_file);  
+		                return;  
+		            }  
+			printf("udah di sini coy\n");
+		        int cmd_sock=fileno(fp);  
+		        int retvget;   
+		        memset(data_info, 0, MAX_INFO);    
+		        while ((retvget = read(data_sockinit_retr, data_info, MAX_INFO)) > 0)  
+		        {  
+				fputs(data_info,stdout); 
+		                if (write(cmd_sock, data_info, retvget) != retvget)  
+		                    {  
+		                    printf("Gagal Membaca Pesan\n");  
+		                    return;  
+		                 }  
+		        }  
+			printf("udah di sini lho\n");
+		        fclose(fp);  
+		        close(data_sockinit);  
+		        //get_Server_Control_Info(cmd,0);  
+			
+			memset(control_info, 0, MAX_INFO);     
+			int bytescmd;  
+			if((bytescmd=recv(control_sockinit,control_info,MAX_INFO,0))==-1)  
+			{  
+			    printf("recv error\n");  
+			    exit(-1);  
+			}  
+			control_info[bytescmd]='\0';  
+			printf("Server Message:\n%s\n",control_info);  
+		        
+		        char transter[]="226 ";  
+		        while(strstr(control_info,transter)==NULL)  
+		        {
+
+				memset(control_info, 0, MAX_INFO);     
+				int bytescmd2;  
+				if((bytescmd2=recv(control_sockinit,control_info,MAX_INFO,0))==-1)  
+				{  
+				    printf("recv error\n");  
+				    exit(-1);  
+				}  
+				control_info[bytescmd2]='\0';  
+				printf("Server Message:\n%s\n",control_info);  
+
+			} 
+		
+            }
+		/*--------------------------RETR--------------------------------------*/
+
+		/*--------------------------STOR--------------------------------------*/
+
+		if (strncmp("stor", ftp_cmd, 4) == 0)  
+            {  
+			int s2=0, idx2=0;   
+                   	int leng=strlen(ftp_cmd);   
+                    
+                    	for(s2=5;s2<leng-2;s2++)  
+                   	{                          
+                        	nama_file[idx2]=ftp_cmd[s2];
+				idx2++;  
+                    	}  
+                   		nama_file[idx2]='\0';  
+			//printf("%s",nama_file);
+			char pasv_cmd_stor[7]="pasv\r\n";
+			int panjangstor;  
+			if(strlen(pasv_cmd_stor)!=0)  
+			{  
+			panjangstor = write(control_sockinit, pasv_cmd_stor, strlen(pasv_cmd_stor));  
+			    printf("%d bytes writen %s\n", panjangstor, pasv_cmd_stor);  
+			}  
+			  
+			memset(control_info, 0, MAX_INFO);     
+			int ukur;  
+			if((ukur=recv(control_sockinit,control_info,MAX_INFO,0))==-1)  
+			{  
+			    printf("recv error\n");  
+			    exit(-1);  
+			}  
+			control_info[ukur]='\0';  
+			printf("Server Message:\n%s\n",control_info); 
+
+			struct sockaddr_in data_Temp_addr_stor=get_Server_Data_Port();
+			int data_sockinit_stor;
+	
+			if ((data_sockinit_stor=socket(AF_INET,SOCK_STREAM,0))==-1)
+			{   
+			    fprintf(stderr,"Socket Create Error:%s\a\n",strerror(errno));  
+			    exit(1);   
+			}  
+		       if(connect(data_sockinit_stor, (struct sockaddr*)(&data_Temp_addr_stor), sizeof(struct sockaddr_in)) < 0)  
+			{  
+			    printf("Gagal Berhubungan\n");  
+			    exit(-1);  
+			} 
+
+		       char type_cmd_stor[9]="TYPE I\r\n";  
+		      	//get_Server_Control_Info(type_cmd,strlen(type_cmd));  
+			int panjangtstor;  
+			if(strlen(type_cmd_stor)!=0)  
+			{  
+			panjangtstor = write(control_sockinit, type_cmd_stor, strlen(type_cmd_stor));  
+			    printf("%d bytes writen %s\n", panjangtstor, type_cmd_stor);  
+			}  
+			  
+			memset(control_info, 0, MAX_INFO);     
+			int ukurstor;  
+			if((ukurstor=recv(control_sockinit,control_info,MAX_INFO,0))==-1)  
+			{  
+			    printf("recv error\n");  
+			    exit(-1);  
+			}  
+			control_info[ukurstor]='\0';  
+			printf("Server Message:\n%s\n",control_info); 
+
+
+		       FILE* fp_stor = fopen(nama_file, "rb");  
+		        if (fp_stor == NULL)  
+		            {  
+		                printf("open file %s error\r\n",nama_file);  
+		                close(data_sockinit_stor);  
+		                return;  
+		            }
+  
+		        //get_Server_Control_Info(cmd,strlen(cmd));  
+			int le;  
+			if(strlen(ftp_cmd)!=0)  
+			{  
+				le = write(control_sockinit, ftp_cmd, strlen(ftp_cmd));  
+			    printf("%d bytes writen %s\n", le, ftp_cmd);  
+			}  
+			  
+			memset(control_info, 0, MAX_INFO);     
+			int ukurstor2;  
+			if((ukurstor2=recv(control_sockinit,control_info,MAX_INFO,0))==-1)  
+			{  
+			    printf("recv error\n");  
+			    exit(-1);  
+			}  
+			control_info[ukurstor2]='\0';  
+			printf("Server Message:\n%s\n",control_info);		        
+
+
+			int cmd_sock_stor=fileno(fp_stor);  
+		        int n;   
+		        memset(data_info, 0, MAX_INFO);    
+		        while ((n = read(cmd_sock_stor, data_info, MAX_INFO)) > 0)  
+		        {  
+		                if (write(data_sockinit_stor, data_info, n) != n)  
+		                    {  
+		                    printf("read from server error in get_server_data\n");  
+		                    return;  
+		                 }  
+		        }  
+		        fclose(fp_stor);  
+		        close(data_sockinit_stor);  
+		        //get_Server_Control_Info(cmd,0);  
+		        memset(control_info, 0, MAX_INFO);     
+			int bstr1;  
+			if((bstr1=recv(control_sockinit,control_info,MAX_INFO,0))==-1)  
+			{  
+			    printf("recv error\n");  
+			    exit(-1);  
+			}  
+			control_info[bstr1]='\0';  
+			printf("Server Message:\n%s\n",control_info); 
+
+
+			char transter_stor[]="226 ";  
+		        while(strstr(control_info,transter_stor)==NULL)  
+			{
+		            //get_Server_Control_Info(cmd,0); 
+			memset(control_info, 0, MAX_INFO);     
+			int bstr;  
+			if((bstr=recv(control_sockinit,control_info,MAX_INFO,0))==-1)  
+			{  
+			    printf("recv error\n");  
+			    exit(-1);  
+			}  
+			control_info[bstr]='\0';  
+			printf("Server Message:\n%s\n",control_info); 
+		    }  
+	}
+		/*--------------------------STOR--------------------------------------*/
+		
 
 		if(strncmp(ftp_cmd,"quit",4)==0) exit(0);
 
